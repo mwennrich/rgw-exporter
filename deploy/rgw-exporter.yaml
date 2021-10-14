@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rgw-exporter
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: rgw-exporter-psp
+spec:
+  allowedHostPaths:
+  - pathPrefix: /lib/modules
+  - pathPrefix: /dev
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - secret
+  - hostPath
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rgw-exporter-psp
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - rgw-exporter-psp
+  verbs:
+  - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rgw-exporter-psp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rgw-exporter-psp
+subjects:
+- apiGroup: ""
+  kind: ServiceAccount
+  name: rgw-exporter
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: rgw-exporter
+spec:
+  selector:
+    matchLabels:
+      app: rgw-exporter
+  template:
+    metadata:
+      labels:
+        app: rgw-exporter
+    spec:
+      serviceAccountName: rgw-exporter
+      containers:
+      - name: rgw-exporter
+        image: mwennrich/rgw-exporter:latest
+        securityContext:
+          privileged: true
+        command:
+        - /rgw-exporter
+        ports:
+        - name: metrics
+          containerPort: 9080
+          protocol: TCP
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        volumeMounts:
+          - mountPath: /dev
+            name: devices
+            readOnly: true
+          - mountPath: /lib/modules
+            name: modules
+            readOnly: true
+      volumes:
+        - hostPath:
+            path: /dev
+          name: devices
+        - hostPath:
+            path: /lib/modules
+          name: modules
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: rgw-exporter
+  name: rgw-exporter
+spec:
+  clusterIP: None
+  ports:
+  - name: metrics
+    port: 9080
+  selector:
+    app: rgw-exporter

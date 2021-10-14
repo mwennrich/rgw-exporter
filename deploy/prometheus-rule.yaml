@@ -1,0 +1,10 @@
+# apiVersion: monitoring.coreos.com/v1
+# kind: PrometheusRule
+# metadata:
+#   labels:
+#     release: prometheus
+#   name: rgw-exporter
+# spec:
+#   groups:
+#   - name: rgw-exporter.rules
+#     rules:
