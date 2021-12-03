@@ -3,7 +3,7 @@
 - queries a ceph-endpoint for ceph-usage
 - needs a credentials (access_key, secret_key) with admin privileges (e.g. dashboard user)
 
-## sample metrics output
+## sample metrics output (QUERY_ENTRIES=true)
 
 ```text
 # HELP rgw_bucket_bytes_received Shows rgw bucket received traffic in Bytes
