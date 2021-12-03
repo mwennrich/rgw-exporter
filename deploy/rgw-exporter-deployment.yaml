@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rgw-exporter
+  labels:
+    app: rgw-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rgw-exporter
+  template:
+    metadata:
+      labels:
+        app: rgw-exporter
+    spec:
+      securityContext:
+        runAsUser: 999
+      containers:
+        - name: rgw-exporter
+          command:
+            - /rgw-exporter
+          args:
+            - start
+          image: docker.io/mwennrich/rgw-exporter:latest
+          ports:
+            - containerPort: 9080
+              name: metrics
+          env:
+            - name: QUERY_ENTRIES
+              value: "false"
+            - name: CEPH_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: rgw-exporter-config
+                  key: endpoint
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: rgw-exporter-config
+                  key: accesskey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rgw-exporter-config
+                  key: secretkey
