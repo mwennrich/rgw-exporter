@@ -2,16 +2,14 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    app: rgw-exporter
     release: prometheus
   name: rgw-exporter
-  namespace: monitoring
 spec:
   endpoints:
-  - port: metrics
-  namespaceSelector:
-    matchNames:
-    - monitoring
+    - path: /metrics
+      port: metrics
+      interval: 60s
+      scrapeTimeout: 30s
   selector:
     matchLabels:
       app: rgw-exporter
