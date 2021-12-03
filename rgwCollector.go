@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
 	ptr "k8s.io/utils/pointer"
 )
@@ -17,8 +18,12 @@ type rgwCollector struct {
 	rgwCategoryBytesSent     *prometheus.Desc
 	rgwCategorySuccessfulOps *prometheus.Desc
 	rgwCategoryOps           *prometheus.Desc
+	rgwBucketBytesReceived   *prometheus.Desc
+	rgwBucketBytesSent       *prometheus.Desc
+	rgwBucketSuccessfulOps   *prometheus.Desc
+	rgwBucketOps             *prometheus.Desc
 	rgw                      *admin.API
-	queryCategories          bool
+	queryEntries             bool
 }
 
 func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
@@ -55,8 +60,24 @@ func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
 			"Shows rgw category sucessfull ops",
 			[]string{"user", "s3_endpoint", "category"}, nil,
 		),
-		rgw:             rgw,
-		queryCategories: queryCategories,
+		rgwBucketBytesReceived: prometheus.NewDesc("rgw_bucket_bytes_received",
+			"Shows rgw bucket received traffic in Bytes",
+			[]string{"user", "bucket", "owner", "s3_endpoint", "category"}, nil,
+		),
+		rgwBucketBytesSent: prometheus.NewDesc("rgw_bucket_bytes_sent",
+			"Shows rgw bucket sent traffic in Bytes",
+			[]string{"user", "bucket", "owner", "s3_endpoint", "category"}, nil,
+		),
+		rgwBucketOps: prometheus.NewDesc("rgw_bucket_ops",
+			"Shows rgw bucket ops",
+			[]string{"user", "bucket", "owner", "s3_endpoint", "category"}, nil,
+		),
+		rgwBucketSuccessfulOps: prometheus.NewDesc("rgw_bucket_ops_successful",
+			"Shows rgw bucket sucessfull ops",
+			[]string{"user", "bucket", "owner", "s3_endpoint", "category"}, nil,
+		),
+		rgw:          rgw,
+		queryEntries: queryEntries,
 	}
 }
 
@@ -69,26 +90,41 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.rgwCategoryBytesSent
 	ch <- collector.rgwCategoryOps
 	ch <- collector.rgwCategorySuccessfulOps
+	ch <- collector.rgwBucketBytesReceived
+	ch <- collector.rgwBucketBytesSent
+	ch <- collector.rgwBucketOps
+	ch <- collector.rgwBucketSuccessfulOps
 }
 
 func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
-	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.BoolPtr(true), ShowEntries: ptr.BoolPtr(false)})
+	today := now.BeginningOfDay()
+	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.BoolPtr(true), ShowEntries: ptr.BoolPtr(collector.queryEntries), Start: today.String()})
 	if err != nil {
 		panic(err)
 	}
-	for _, user := range usage.Summary {
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytesReceived, prometheus.GaugeValue, float64(user.Total.BytesReceived), user.User, collector.rgw.Endpoint)
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytesSent, prometheus.GaugeValue, float64(user.Total.BytesSent), user.User, collector.rgw.Endpoint)
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalOps, prometheus.GaugeValue, float64(user.Total.Ops), user.User, collector.rgw.Endpoint)
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalSuccessfulOps, prometheus.GaugeValue, float64(user.Total.SuccessfulOps), user.User, collector.rgw.Endpoint)
-
-		if collector.queryCategories {
-			for _, category := range user.Categories {
-				ch <- prometheus.MustNewConstMetric(collector.rgwCategoryBytesReceived, prometheus.GaugeValue, float64(category.BytesReceived), user.User, collector.rgw.Endpoint, category.Category)
-				ch <- prometheus.MustNewConstMetric(collector.rgwCategoryBytesSent, prometheus.GaugeValue, float64(category.BytesSent), user.User, collector.rgw.Endpoint, category.Category)
-				ch <- prometheus.MustNewConstMetric(collector.rgwCategoryOps, prometheus.GaugeValue, float64(category.Ops), user.User, collector.rgw.Endpoint, category.Category)
-				ch <- prometheus.MustNewConstMetric(collector.rgwCategorySuccessfulOps, prometheus.GaugeValue, float64(category.SuccessfulOps), user.User, collector.rgw.Endpoint, category.Category)
+	if collector.queryEntries {
+		for _, entry := range usage.Entries {
+			for _, bucket := range entry.Buckets {
+				for _, category := range bucket.Categories {
+					ch <- prometheus.MustNewConstMetric(collector.rgwBucketBytesReceived, prometheus.CounterValue, float64(category.BytesReceived), entry.User, bucket.Bucket, bucket.Owner, collector.rgw.Endpoint, category.Category)
+					ch <- prometheus.MustNewConstMetric(collector.rgwBucketBytesSent, prometheus.CounterValue, float64(category.BytesSent), entry.User, bucket.Bucket, bucket.Owner, collector.rgw.Endpoint, category.Category)
+					ch <- prometheus.MustNewConstMetric(collector.rgwBucketOps, prometheus.CounterValue, float64(category.Ops), entry.User, bucket.Bucket, bucket.Owner, collector.rgw.Endpoint, category.Category)
+					ch <- prometheus.MustNewConstMetric(collector.rgwBucketSuccessfulOps, prometheus.CounterValue, float64(category.SuccessfulOps), entry.User, bucket.Bucket, bucket.Owner, collector.rgw.Endpoint, category.Category)
+				}
 			}
+		}
+	}
+	for _, user := range usage.Summary {
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytesReceived, prometheus.CounterValue, float64(user.Total.BytesReceived), user.User, collector.rgw.Endpoint)
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytesSent, prometheus.CounterValue, float64(user.Total.BytesSent), user.User, collector.rgw.Endpoint)
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalOps, prometheus.CounterValue, float64(user.Total.Ops), user.User, collector.rgw.Endpoint)
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalSuccessfulOps, prometheus.CounterValue, float64(user.Total.SuccessfulOps), user.User, collector.rgw.Endpoint)
+
+		for _, category := range user.Categories {
+			ch <- prometheus.MustNewConstMetric(collector.rgwCategoryBytesReceived, prometheus.CounterValue, float64(category.BytesReceived), user.User, collector.rgw.Endpoint, category.Category)
+			ch <- prometheus.MustNewConstMetric(collector.rgwCategoryBytesSent, prometheus.CounterValue, float64(category.BytesSent), user.User, collector.rgw.Endpoint, category.Category)
+			ch <- prometheus.MustNewConstMetric(collector.rgwCategoryOps, prometheus.CounterValue, float64(category.Ops), user.User, collector.rgw.Endpoint, category.Category)
+			ch <- prometheus.MustNewConstMetric(collector.rgwCategorySuccessfulOps, prometheus.CounterValue, float64(category.SuccessfulOps), user.User, collector.rgw.Endpoint, category.Category)
 		}
 	}
 }

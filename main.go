@@ -18,7 +18,7 @@ func main() {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	endpointURL := os.Getenv("CEPH_ENDPOINT_URL")
-	queryCategories := os.Getenv("QUERY_CATEGORIES")
+	queryEntries := os.Getenv("QUERY_ENTRIES")
 
 	if len(accessKey) == 0 {
 		panic("must provide AWS_ACCESS_KEY_ID")
@@ -29,9 +29,9 @@ func main() {
 	if len(endpointURL) == 0 {
 		panic("must provide CEPH_ENDPOINT_URL")
 	}
-	queryCategoriesBool := false
-	if len(queryCategories) != 0 && queryCategories == strings.ToLower("true") {
-		queryCategoriesBool = true
+	queryEntriesBool := false
+	if len(queryEntries) != 0 && queryEntries == strings.ToLower("true") {
+		queryEntriesBool = true
 	}
 
 	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 60})
@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rgwCollector := newrgwCollector(co, queryCategoriesBool)
+	rgwCollector := newrgwCollector(co, queryEntriesBool)
 	prometheus.MustRegister(rgwCollector)
 
 	http.Handle("/metrics", promhttp.Handler())
