@@ -3,7 +3,7 @@ module github.com/mwennrich/rgw-exporter
 go 1.17
 
 require (
-	github.com/ceph/go-ceph v0.12.0
+	github.com/ceph/go-ceph v0.13.0
 	github.com/jinzhu/now v1.1.4
 	github.com/prometheus/client_golang v1.11.0
 	k8s.io/klog/v2 v2.30.0
