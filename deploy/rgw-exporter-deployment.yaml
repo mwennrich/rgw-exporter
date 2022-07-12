@@ -14,8 +14,7 @@ spec:
       labels:
         app: rgw-exporter
     spec:
-      securityContext:
-        runAsUser: 999
+      automountServiceAccountToken: false
       containers:
         - name: rgw-exporter
           command:
@@ -26,6 +25,9 @@ spec:
           ports:
             - containerPort: 9080
               name: metrics
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
           env:
             - name: QUERY_ENTRIES
               value: "false"
