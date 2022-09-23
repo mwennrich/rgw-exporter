@@ -44,5 +44,9 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 	klog.Info("Beginning to serve on port :9080")
-	klog.Fatal(http.ListenAndServe(":9080", nil))
+	server := &http.Server{
+		Addr:              ":9080",
+		ReadHeaderTimeout: 300 * time.Second,
+	}
+	klog.Fatal(server.ListenAndServe())
 }
