@@ -69,7 +69,7 @@ func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
 			[]string{"user", "s3_endpoint", "category"}, nil,
 		),
 		rgwCategorySuccessfulOps: prometheus.NewDesc("rgw_category_ops_successful",
-			"Shows rgw category sucessfull ops",
+			"Shows rgw category successfull ops",
 			[]string{"user", "s3_endpoint", "category"}, nil,
 		),
 		rgwBucketBytesReceived: prometheus.NewDesc("rgw_bucket_bytes_received",
