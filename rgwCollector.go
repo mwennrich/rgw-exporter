@@ -160,16 +160,22 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 		if err != nil {
 			panic(err)
 		}
+
 		var size, numObjects uint64
 		for _, bucket := range stats {
+
+			if bucket.Usage.RgwMain.SizeActual == nil || bucket.Usage.RgwMain.NumObjects == nil {
+				continue
+			}
+
 			size += *bucket.Usage.RgwMain.SizeActual
 			numObjects += *bucket.Usage.RgwMain.NumObjects
 			if collector.queryEntries {
 				ch <- prometheus.MustNewConstMetric(collector.rgwBucketBytes, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.SizeActual), user, bucket.Bucket, collector.rgw.Endpoint)
 				ch <- prometheus.MustNewConstMetric(collector.rgwBucketObjects, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.NumObjects), user, bucket.Bucket, collector.rgw.Endpoint)
 			}
-			ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytes, prometheus.GaugeValue, float64(size), user, collector.rgw.Endpoint)
-			ch <- prometheus.MustNewConstMetric(collector.rgwTotalObjects, prometheus.GaugeValue, float64(numObjects), user, collector.rgw.Endpoint)
 		}
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytes, prometheus.GaugeValue, float64(size), user, collector.rgw.Endpoint)
+		ch <- prometheus.MustNewConstMetric(collector.rgwTotalObjects, prometheus.GaugeValue, float64(numObjects), user, collector.rgw.Endpoint)
 	}
 }
