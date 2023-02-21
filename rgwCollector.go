@@ -14,6 +14,8 @@ type rgwCollector struct {
 	rgwTotalBytesSent        *prometheus.Desc
 	rgwTotalSuccessfulOps    *prometheus.Desc
 	rgwTotalOps              *prometheus.Desc
+	rgwTotalBytes            *prometheus.Desc
+	rgwTotalObjects          *prometheus.Desc
 	rgwCategoryBytesReceived *prometheus.Desc
 	rgwCategoryBytesSent     *prometheus.Desc
 	rgwCategorySuccessfulOps *prometheus.Desc
@@ -22,6 +24,8 @@ type rgwCollector struct {
 	rgwBucketBytesSent       *prometheus.Desc
 	rgwBucketSuccessfulOps   *prometheus.Desc
 	rgwBucketOps             *prometheus.Desc
+	rgwBucketBytes           *prometheus.Desc
+	rgwBucketObjects         *prometheus.Desc
 	rgw                      *admin.API
 	queryEntries             bool
 }
@@ -38,6 +42,14 @@ func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
 		),
 		rgwTotalOps: prometheus.NewDesc("rgw_total_ops",
 			"Shows rgw total ops",
+			[]string{"user", "s3_endpoint"}, nil,
+		),
+		rgwTotalBytes: prometheus.NewDesc("rgw_total_bytes",
+			"Shows rgw total bytes",
+			[]string{"user", "s3_endpoint"}, nil,
+		),
+		rgwTotalObjects: prometheus.NewDesc("rgw_total_objects",
+			"Shows rgw total number of objects",
 			[]string{"user", "s3_endpoint"}, nil,
 		),
 		rgwTotalSuccessfulOps: prometheus.NewDesc("rgw_total_ops_successful",
@@ -76,6 +88,14 @@ func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
 			"Shows rgw bucket sucessfull ops",
 			[]string{"user", "bucket", "owner", "s3_endpoint", "category"}, nil,
 		),
+		rgwBucketBytes: prometheus.NewDesc("rgw_bucket_bytes",
+			"Shows rgw bucket bytes",
+			[]string{"user", "bucket", "s3_endpoint"}, nil,
+		),
+		rgwBucketObjects: prometheus.NewDesc("rgw_bucket_objects",
+			"Shows rgw bucket number of objects",
+			[]string{"user", "bucket", "s3_endpoint"}, nil,
+		),
 		rgw:          rgw,
 		queryEntries: queryEntries,
 	}
@@ -86,6 +106,8 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.rgwTotalBytesSent
 	ch <- collector.rgwTotalOps
 	ch <- collector.rgwTotalSuccessfulOps
+	ch <- collector.rgwTotalBytes
+	ch <- collector.rgwTotalObjects
 	ch <- collector.rgwCategoryBytesReceived
 	ch <- collector.rgwCategoryBytesSent
 	ch <- collector.rgwCategoryOps
@@ -94,6 +116,8 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.rgwBucketBytesSent
 	ch <- collector.rgwBucketOps
 	ch <- collector.rgwBucketSuccessfulOps
+	ch <- collector.rgwBucketBytes
+	ch <- collector.rgwBucketObjects
 }
 
 func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
@@ -125,6 +149,21 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(collector.rgwCategoryBytesSent, prometheus.CounterValue, float64(category.BytesSent), user.User, collector.rgw.Endpoint, category.Category)
 			ch <- prometheus.MustNewConstMetric(collector.rgwCategoryOps, prometheus.CounterValue, float64(category.Ops), user.User, collector.rgw.Endpoint, category.Category)
 			ch <- prometheus.MustNewConstMetric(collector.rgwCategorySuccessfulOps, prometheus.CounterValue, float64(category.SuccessfulOps), user.User, collector.rgw.Endpoint, category.Category)
+		}
+		stats, err := collector.rgw.ListUsersBucketsWithStat(context.Background(), user.User)
+		if err != nil {
+			panic(err)
+		}
+		var size, numObjects uint64
+		for _, bucket := range stats {
+			size += *bucket.Usage.RgwMain.SizeActual
+			numObjects += *bucket.Usage.RgwMain.NumObjects
+			if collector.queryEntries {
+				ch <- prometheus.MustNewConstMetric(collector.rgwBucketBytes, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.SizeActual), user.User, bucket.Bucket, collector.rgw.Endpoint)
+				ch <- prometheus.MustNewConstMetric(collector.rgwBucketObjects, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.NumObjects), user.User, bucket.Bucket, collector.rgw.Endpoint)
+			}
+			ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytes, prometheus.GaugeValue, float64(size), user.User, collector.rgw.Endpoint)
+			ch <- prometheus.MustNewConstMetric(collector.rgwTotalObjects, prometheus.GaugeValue, float64(numObjects), user.User, collector.rgw.Endpoint)
 		}
 	}
 }
