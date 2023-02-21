@@ -122,7 +122,7 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 	today := now.BeginningOfDay()
-	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.BoolPtr(true), ShowEntries: ptr.BoolPtr(collector.queryEntries), Start: today.String()})
+	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
 	if err != nil {
 		panic(err)
 	}
