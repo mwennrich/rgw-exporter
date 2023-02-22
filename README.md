@@ -43,7 +43,7 @@ rgw_bucket_ops{bucket="test2483",category="get_bucket_location",owner="user-a",s
 rgw_bucket_ops{bucket="test2483",category="list_bucket",owner="user-a",s3_endpoint="https://s3.example.com",user="user-a"} 3
 rgw_bucket_ops{bucket="test2483",category="put_obj",owner="user-a",s3_endpoint="https://s3.example.com",user="user-a"} 1
 
-# HELP rgw_bucket_ops_successful Shows rgw bucket sucessfull ops
+# HELP rgw_bucket_ops_successful Shows rgw bucket successful ops
 # TYPE rgw_bucket_ops_successful counter
 rgw_bucket_ops_successful{bucket="",category="list_buckets",owner="user-a",s3_endpoint="https://s3.example.com",user="user-a"} 6
 rgw_bucket_ops_successful{bucket="-",category="get_bucket_object_lock",owner="user-a",s3_endpoint="https://s3.example.com",user="user-a"} 0
@@ -79,7 +79,7 @@ rgw_category_ops{category="list_bucket",s3_endpoint="https://s3.example.com",use
 rgw_category_ops{category="list_buckets",s3_endpoint="https://s3.example.com",user="user-a"} 6
 rgw_category_ops{category="put_obj",s3_endpoint="https://s3.example.com",user="user-a"} 1
 
-# HELP rgw_category_ops_successful Shows rgw category successfull ops
+# HELP rgw_category_ops_successful Shows rgw category successful ops
 # TYPE rgw_category_ops_successful counter
 rgw_category_ops_successful{category="get_bucket_location",s3_endpoint="https://s3.example.com",user="user-a"} 2
 rgw_category_ops_successful{category="get_bucket_object_lock",s3_endpoint="https://s3.example.com",user="user-a"} 0
@@ -108,7 +108,7 @@ rgw_total_objects{s3_endpoint="https://s3.example.com",user="user-a"} 89
 # TYPE rgw_total_ops counter
 rgw_total_ops{s3_endpoint="https://s3.example.com",user="user-a"} 15
 
-# HELP rgw_total_ops_successful Shows rgw total sucessfull ops
+# HELP rgw_total_ops_successful Shows rgw total successful ops
 # TYPE rgw_total_ops_successful counter
 rgw_total_ops_successful{s3_endpoint="https://s3.example.com",user="user-a"} 12
 ```
