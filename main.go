@@ -13,6 +13,10 @@ import (
 	klog "k8s.io/klog/v2"
 )
 
+var (
+	rgwC *rgwCollector
+)
+
 func main() {
 
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
@@ -39,10 +43,31 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	rgwCollector := newrgwCollector(co, queryEntriesBool)
-	prometheus.MustRegister(rgwCollector)
+	rgwRegistry := prometheus.NewRegistry()
+	rgwC = newrgwCollector(co, queryEntriesBool,rgwRegistry)
+	rgwC.init()
 
-	http.Handle("/metrics", promhttp.Handler())
+	// prometheus.MustRegister(rgwRegistry)
+
+	go func() {
+		for {
+			rgwC.collect()
+			time.Sleep(time.Second * 60)
+		}
+	}()
+
+	go func() {
+		for {
+			rgwC.collectStats()
+			time.Sleep(time.Minute * 15)
+		}
+	}()
+	// http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.HandlerFor(
+		rgwRegistry,
+		promhttp.HandlerOpts{},
+	))
+
 	klog.Info("Beginning to serve on port :9080")
 	server := &http.Server{
 		Addr:              ":9080",
