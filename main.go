@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
+	"github.com/robfig/cron/v3"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -44,24 +45,66 @@ func main() {
 		panic(err)
 	}
 	rgwRegistry := prometheus.NewRegistry()
-	rgwC = newrgwCollector(co, queryEntriesBool,rgwRegistry)
+	rgwC = newrgwCollector(co, queryEntriesBool, rgwRegistry)
 	rgwC.init()
 
-	// prometheus.MustRegister(rgwRegistry)
+	usageSchedule := "@every 1m"
 
+	chUsage := make(chan struct{}, 1)
 	go func() {
+		cronUsage := cron.New()
+		_, err := cronUsage.AddFunc(usageSchedule, func() {
+			if len(chUsage) == 0 {
+				chUsage <- struct{}{}
+			}
+		})
+		if err != nil {
+			klog.Fatalf("Invalid usage schedule: %s: %s\n", usageSchedule, err)
+		}
+		klog.Infof("Configured usage schedule: %s\n", usageSchedule)
+
+		cronUsage.Start()
+
+		if len(chUsage) == 0 {
+			// send initial message
+			chUsage <- struct{}{}
+		}
+
 		for {
-			rgwC.collect()
-			time.Sleep(time.Second * 60)
+			<-chUsage
+			rgwC.collectUsage()
 		}
 	}()
 
+	statsSchedule := "@every 15m"
+
+	chStats := make(chan struct{}, 1)
 	go func() {
+		cronStats := cron.New()
+		_, err := cronStats.AddFunc(statsSchedule, func() {
+			if len(chStats) == 0 {
+				chStats <- struct{}{}
+			}
+		})
+		if err != nil {
+			klog.Fatalf("Invalid stats schedule: %s: %s\n", statsSchedule, err)
+		}
+		klog.Infof("Configured stats schedule: %s\n", statsSchedule)
+
+		time.Sleep(30 * time.Second)
+		cronStats.Start()
+
+		if len(chStats) == 0 {
+			// send initial message
+			chStats <- struct{}{}
+		}
+
 		for {
+			<-chStats
 			rgwC.collectStats()
-			time.Sleep(time.Minute * 15)
 		}
 	}()
+
 	// http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/metrics", promhttp.HandlerFor(
 		rgwRegistry,

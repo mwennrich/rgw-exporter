@@ -156,7 +156,7 @@ func (collector *rgwCollector) init() {
 	)
 }
 
-func (collector *rgwCollector) collect() {
+func (collector *rgwCollector) collectUsage() {
 	today := now.BeginningOfDay()
 	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
 	if err != nil {
@@ -189,7 +189,7 @@ func (collector *rgwCollector) collect() {
 	}
 }
 
-func (collector *rgwCollector)collectStats() {
+func (collector *rgwCollector) collectStats() {
 	users, err := collector.rgw.GetUsers(context.Background())
 	if err != nil || users == nil {
 		panic(err)

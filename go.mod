@@ -6,6 +6,7 @@ require (
 	github.com/ceph/go-ceph v0.20.0
 	github.com/jinzhu/now v1.1.5
 	github.com/prometheus/client_golang v1.14.0
+	github.com/robfig/cron/v3 v3.0.1
 	k8s.io/klog/v2 v2.90.0
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 )
