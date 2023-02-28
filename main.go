@@ -23,7 +23,10 @@ func main() {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	endpointURL := os.Getenv("CEPH_ENDPOINT_URL")
-	queryEntries := os.Getenv("QUERY_ENTRIES")
+	queryEntriesEnv := os.Getenv("QUERY_ENTRIES")
+
+	usageScheduleEnv := os.Getenv("USAGE_SCHEDULE")
+	statsScheduleEnv := os.Getenv("STATS_SCHEDULE")
 
 	if len(accessKey) == 0 {
 		panic("must provide AWS_ACCESS_KEY_ID")
@@ -34,9 +37,23 @@ func main() {
 	if len(endpointURL) == 0 {
 		panic("must provide CEPH_ENDPOINT_URL")
 	}
-	queryEntriesBool := false
-	if len(queryEntries) != 0 && queryEntries == strings.ToLower("true") {
-		queryEntriesBool = true
+
+	// default false
+	queryEntries := false
+	if len(queryEntriesEnv) != 0 && queryEntriesEnv == strings.ToLower("true") {
+		queryEntries = true
+	}
+
+	// default to 1m
+	usageSchedule := "@every 1m"
+	if len(usageScheduleEnv) != 0 {
+		usageSchedule = usageScheduleEnv
+	}
+
+	// default to 15m
+	statsSchedule := "@every 15m"
+	if len(statsScheduleEnv) != 0 {
+		statsSchedule = statsScheduleEnv
 	}
 
 	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 60})
@@ -45,10 +62,8 @@ func main() {
 		panic(err)
 	}
 	rgwRegistry := prometheus.NewRegistry()
-	rgwC = newrgwCollector(co, queryEntriesBool, rgwRegistry)
+	rgwC = newrgwCollector(co, queryEntries, rgwRegistry)
 	rgwC.init()
-
-	usageSchedule := "@every 1m"
 
 	chUsage := make(chan struct{}, 1)
 	go func() {
@@ -76,7 +91,6 @@ func main() {
 		}
 	}()
 
-	statsSchedule := "@every 15m"
 
 	chStats := make(chan struct{}, 1)
 	go func() {

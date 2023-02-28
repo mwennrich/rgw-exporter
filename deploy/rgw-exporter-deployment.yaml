@@ -29,8 +29,12 @@ spec:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
           env:
-            - name: QUERY_ENTRIES
-              value: "false"
+            # - name: QUERY_ENTRIES
+            #   value: "false"
+            # - name: USAGE_SCHEDULE
+            #   value : "@every 1m"
+            # - name: STATS_SCHEDULE
+            #   value : "@every 15mm"
             - name: CEPH_ENDPOINT_URL
               valueFrom:
                 secretKeyRef:
