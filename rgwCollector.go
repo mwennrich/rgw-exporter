@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	retry "github.com/avast/retry-go"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
@@ -159,7 +160,19 @@ func (collector *rgwCollector) init() {
 
 func (collector *rgwCollector) collectUsage() {
 	today := now.BeginningOfDay()
-	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
+	var usage admin.Usage
+	err := retry.Do(
+		func() error {
+			var err error
+			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
+			if err != nil {
+				klog.Warningf("failed to fetch usage: %w", err)
+			}
+			return err
+		},
+		retry.Attempts(50),
+	)
+
 	if err != nil {
 		klog.Errorf("failed to fetch usage date: %w", err)
 		return
@@ -192,13 +205,36 @@ func (collector *rgwCollector) collectUsage() {
 }
 
 func (collector *rgwCollector) collectStats() {
-	users, err := collector.rgw.GetUsers(context.Background())
+
+	var users *[]string
+	err := retry.Do(
+		func() error {
+			var err error
+			users, err = collector.rgw.GetUsers(context.Background())
+			if err != nil {
+				klog.Warningf("failed to fetch stats: %w", err)
+			}
+			return err
+		},
+		retry.Attempts(50),
+	)
 	if err != nil || users == nil {
 		klog.Errorf("failed to fetch stats: %w", err)
 		return
 	}
 	for _, user := range *users {
-		stats, err := collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
+		var stats []admin.Bucket
+		err := retry.Do(
+			func() error {
+				var err error
+				stats, err = collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
+				if err != nil {
+					klog.Warningf("failed to fetch stats: %w", err)
+				}
+				return err
+			},
+			retry.Attempts(50),
+		)
 		if err != nil {
 			klog.Errorf("failed to fetch stats: %w", err)
 			continue
