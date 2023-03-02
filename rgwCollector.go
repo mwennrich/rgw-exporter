@@ -6,6 +6,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/klog/v2"
 	ptr "k8s.io/utils/pointer"
 )
 
@@ -160,7 +161,8 @@ func (collector *rgwCollector) collectUsage() {
 	today := now.BeginningOfDay()
 	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
 	if err != nil {
-		panic(err)
+		klog.Errorf("failed to fetch usage date: %w", err)
+		return
 	}
 	if collector.queryEntries {
 		for _, entry := range usage.Entries {
@@ -192,12 +194,14 @@ func (collector *rgwCollector) collectUsage() {
 func (collector *rgwCollector) collectStats() {
 	users, err := collector.rgw.GetUsers(context.Background())
 	if err != nil || users == nil {
-		panic(err)
+		klog.Errorf("failed to fetch stats: %w", err)
+		return
 	}
 	for _, user := range *users {
 		stats, err := collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
 		if err != nil {
-			panic(err)
+			klog.Errorf("failed to fetch stats: %w", err)
+			continue
 		}
 
 		var size, numObjects uint64
