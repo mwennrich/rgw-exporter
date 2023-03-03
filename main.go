@@ -19,7 +19,7 @@ func main() {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	endpointURL := os.Getenv("CEPH_ENDPOINT_URL")
-	queryEntries := os.Getenv("QUERY_ENTRIES")
+	queryEntriesEnv := os.Getenv("QUERY_ENTRIES")
 	statsScheduleEnv := os.Getenv("STATS_SCHEDULE")
 
 	if len(accessKey) == 0 {
@@ -31,9 +31,9 @@ func main() {
 	if len(endpointURL) == 0 {
 		panic("must provide CEPH_ENDPOINT_URL")
 	}
-	queryEntriesBool := false
-	if len(queryEntries) != 0 && queryEntries == strings.ToLower("true") {
-		queryEntriesBool = true
+	queryEntries := false
+	if len(queryEntriesEnv) != 0 && queryEntriesEnv == strings.ToLower("true") {
+		queryEntries = true
 	}
 
 	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 60})
@@ -41,7 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	rgwCollector := newrgwCollector(co, queryEntriesBool)
+	rgwCollector := newrgwCollector(co, queryEntries)
 	prometheus.MustRegister(rgwCollector)
 
 	// default to 15m
