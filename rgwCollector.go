@@ -7,6 +7,9 @@ import (
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
 	ptr "k8s.io/utils/pointer"
+
+	retry "github.com/avast/retry-go/v4"
+	"k8s.io/klog/v2"
 )
 
 type rgwCollector struct {
@@ -28,6 +31,8 @@ type rgwCollector struct {
 	rgwBucketObjects         *prometheus.Desc
 	rgw                      *admin.API
 	queryEntries             bool
+
+	statsMetrics *[]prometheus.Metric
 }
 
 func newrgwCollector(rgw *admin.API, queryEntries bool) *rgwCollector {
@@ -122,10 +127,25 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 	today := now.BeginningOfDay()
-	usage, err := collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
+
+	var usage admin.Usage
+	err := retry.Do(
+		func() error {
+			var err error
+			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
+			if err != nil {
+				klog.Warningf("failed to fetch usage (retrying): %v", err)
+			}
+			return err
+		},
+		retry.LastErrorOnly(true),
+	)
+
 	if err != nil {
-		panic(err)
+		klog.Errorf("failed to fetch usage: %v", err)
+		return
 	}
+
 	if collector.queryEntries {
 		for _, entry := range usage.Entries {
 			for _, bucket := range entry.Buckets {
@@ -151,17 +171,56 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(collector.rgwCategorySuccessfulOps, prometheus.CounterValue, float64(category.SuccessfulOps), user.User, collector.rgw.Endpoint, category.Category)
 		}
 	}
-	users, err := collector.rgw.GetUsers(context.Background())
-	if err != nil || users == nil {
-		panic(err)
+
+	if collector.statsMetrics == nil {
+		return
 	}
+	for _, m := range *collector.statsMetrics {
+		ch <- m
+	}
+}
+
+func (collector *rgwCollector) collectStats() {
+
+	var sm []prometheus.Metric
+	var users *[]string
+
+	err := retry.Do(
+		func() error {
+			var err error
+			users, err = collector.rgw.GetUsers(context.Background())
+			if err != nil {
+				klog.Warningf("failed to fetch users (retrying): %v", err)
+			}
+			return err
+		},
+		retry.LastErrorOnly(true),
+	)
+	if err != nil || users == nil {
+		klog.Errorf("failed to fetch users: %v", err)
+		return
+	}
+
 	for _, user := range *users {
-		stats, err := collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
+		var size, numObjects uint64
+		var stats []admin.Bucket
+
+		err := retry.Do(
+			func() error {
+				var err error
+				stats, err = collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
+				if err != nil {
+					klog.Warningf("failed to fetch stats (retrying): %v", err)
+				}
+				return err
+			},
+			retry.LastErrorOnly(true),
+		)
 		if err != nil {
-			panic(err)
+			klog.Errorf("failed to fetch stats: %v", err)
+			continue
 		}
 
-		var size, numObjects uint64
 		for _, bucket := range stats {
 
 			if bucket.Usage.RgwMain.SizeActual == nil || bucket.Usage.RgwMain.NumObjects == nil {
@@ -171,11 +230,12 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 			size += *bucket.Usage.RgwMain.SizeActual
 			numObjects += *bucket.Usage.RgwMain.NumObjects
 			if collector.queryEntries {
-				ch <- prometheus.MustNewConstMetric(collector.rgwBucketBytes, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.SizeActual), user, bucket.Bucket, collector.rgw.Endpoint)
-				ch <- prometheus.MustNewConstMetric(collector.rgwBucketObjects, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.NumObjects), user, bucket.Bucket, collector.rgw.Endpoint)
+				sm = append(sm, prometheus.MustNewConstMetric(collector.rgwBucketBytes, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.SizeActual), user, bucket.Bucket, collector.rgw.Endpoint))
+				sm = append(sm, prometheus.MustNewConstMetric(collector.rgwBucketObjects, prometheus.GaugeValue, float64(*bucket.Usage.RgwMain.NumObjects), user, bucket.Bucket, collector.rgw.Endpoint))
 			}
 		}
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalBytes, prometheus.GaugeValue, float64(size), user, collector.rgw.Endpoint)
-		ch <- prometheus.MustNewConstMetric(collector.rgwTotalObjects, prometheus.GaugeValue, float64(numObjects), user, collector.rgw.Endpoint)
+		sm = append(sm, prometheus.MustNewConstMetric(collector.rgwTotalBytes, prometheus.GaugeValue, float64(size), user, collector.rgw.Endpoint))
+		sm = append(sm, prometheus.MustNewConstMetric(collector.rgwTotalObjects, prometheus.GaugeValue, float64(numObjects), user, collector.rgw.Endpoint))
 	}
+	collector.statsMetrics = &sm
 }
