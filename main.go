@@ -91,7 +91,6 @@ func main() {
 		}
 	}()
 
-
 	chStats := make(chan struct{}, 1)
 	go func() {
 		cronStats := cron.New()

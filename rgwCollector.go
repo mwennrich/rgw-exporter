@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	retry "github.com/avast/retry-go"
+	retry "github.com/avast/retry-go/v4"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
@@ -170,7 +170,6 @@ func (collector *rgwCollector) collectUsage() {
 			}
 			return err
 		},
-		retry.Attempts(50),
 		retry.LastErrorOnly(true),
 	)
 
@@ -217,7 +216,6 @@ func (collector *rgwCollector) collectStats() {
 			}
 			return err
 		},
-		retry.Attempts(50),
 		retry.LastErrorOnly(true),
 	)
 	if err != nil || users == nil {
@@ -235,7 +233,6 @@ func (collector *rgwCollector) collectStats() {
 				}
 				return err
 			},
-			retry.Attempts(50),
 			retry.LastErrorOnly(true),
 		)
 		if err != nil {

@@ -3,6 +3,7 @@ module github.com/mwennrich/rgw-exporter
 go 1.20
 
 require (
+	github.com/avast/retry-go/v4 v4.3.3
 	github.com/ceph/go-ceph v0.20.0
 	github.com/jinzhu/now v1.1.5
 	github.com/prometheus/client_golang v1.14.0
@@ -12,8 +13,7 @@ require (
 )
 
 require (
-	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.44.212 // indirect
+	github.com/aws/aws-sdk-go v1.44.213 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
