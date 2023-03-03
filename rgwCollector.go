@@ -166,15 +166,16 @@ func (collector *rgwCollector) collectUsage() {
 			var err error
 			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
 			if err != nil {
-				klog.Warningf("failed to fetch usage: %w", err)
+				klog.Warningf("failed to fetch usage (retrying): %v", err)
 			}
 			return err
 		},
 		retry.Attempts(50),
+		retry.LastErrorOnly(true),
 	)
 
 	if err != nil {
-		klog.Errorf("failed to fetch usage date: %w", err)
+		klog.Errorf("failed to fetch usage: %v", err)
 		return
 	}
 	if collector.queryEntries {
@@ -212,14 +213,15 @@ func (collector *rgwCollector) collectStats() {
 			var err error
 			users, err = collector.rgw.GetUsers(context.Background())
 			if err != nil {
-				klog.Warningf("failed to fetch stats: %w", err)
+				klog.Warningf("failed to fetch users (retrying): %v", err)
 			}
 			return err
 		},
 		retry.Attempts(50),
+		retry.LastErrorOnly(true),
 	)
 	if err != nil || users == nil {
-		klog.Errorf("failed to fetch stats: %w", err)
+		klog.Errorf("failed to fetch users: %v", err)
 		return
 	}
 	for _, user := range *users {
@@ -229,14 +231,15 @@ func (collector *rgwCollector) collectStats() {
 				var err error
 				stats, err = collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
 				if err != nil {
-					klog.Warningf("failed to fetch stats: %w", err)
+					klog.Warningf("failed to fetch stats (retrying): %v", err)
 				}
 				return err
 			},
 			retry.Attempts(50),
+			retry.LastErrorOnly(true),
 		)
 		if err != nil {
-			klog.Errorf("failed to fetch stats: %w", err)
+			klog.Errorf("failed to fetch stats: %v", err)
 			continue
 		}
 
