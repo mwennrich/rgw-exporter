@@ -36,7 +36,7 @@ func main() {
 		queryEntries = true
 	}
 
-	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 60})
+	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 20})
 	if err != nil {
 		panic(err)
 	}

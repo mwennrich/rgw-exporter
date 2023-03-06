@@ -128,6 +128,12 @@ func (collector *rgwCollector) Describe(ch chan<- *prometheus.Desc) {
 func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 	today := now.BeginningOfDay()
 
+	if collector.statsMetrics != nil {
+		for _, m := range *collector.statsMetrics {
+			ch <- m
+		}
+	}
+
 	var usage admin.Usage
 	err := retry.Do(
 		func() error {
@@ -172,12 +178,6 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	if collector.statsMetrics == nil {
-		return
-	}
-	for _, m := range *collector.statsMetrics {
-		ch <- m
-	}
 }
 
 func (collector *rgwCollector) collectStats() {
