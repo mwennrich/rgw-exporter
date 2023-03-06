@@ -63,7 +63,6 @@ func main() {
 		}
 		klog.Infof("Configured stats schedule: %s\n", statsSchedule)
 
-		time.Sleep(30 * time.Second)
 		cronStats.Start()
 
 		if len(chStats) == 0 {
