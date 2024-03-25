@@ -22,11 +22,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+          cache: false
 
       - name: Lint
         uses: golangci/golangci-lint-action@v4
         with:
-          version: v1.51.2
           args: --timeout=3m -p bugs -p unused
 
       - name: Build the Docker images
