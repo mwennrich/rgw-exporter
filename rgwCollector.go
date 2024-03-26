@@ -6,7 +6,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
-	ptr "k8s.io/utils/pointer"
+	ptr "k8s.io/utils/ptr"
 
 	retry "github.com/avast/retry-go/v4"
 	"k8s.io/klog/v2"
@@ -138,7 +138,7 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 	err := retry.Do(
 		func() error {
 			var err error
-			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.Bool(true), ShowEntries: ptr.Bool(collector.queryEntries), Start: today.String()})
+			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: ptr.To(true), ShowEntries: ptr.To(collector.queryEntries), Start: today.String()})
 			if err != nil {
 				klog.Warningf("failed to fetch usage (retrying): %v", err)
 			}
