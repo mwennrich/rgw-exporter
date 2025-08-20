@@ -31,10 +31,7 @@ func main() {
 	if len(endpointURL) == 0 {
 		panic("must provide CEPH_ENDPOINT_URL")
 	}
-	queryEntries := false
-	if len(queryEntriesEnv) != 0 && queryEntriesEnv == strings.ToLower("true") {
-		queryEntries = true
-	}
+	queryEntries := len(queryEntriesEnv) != 0 && queryEntriesEnv == strings.ToLower("true")
 
 	co, err := admin.New(endpointURL, accessKey, secretKey, &http.Client{Timeout: time.Second * 20})
 	if err != nil {
