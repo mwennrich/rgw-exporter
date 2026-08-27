@@ -7,7 +7,7 @@ import (
 	"github.com/jinzhu/now"
 	"github.com/prometheus/client_golang/prometheus"
 
-	retry "github.com/avast/retry-go/v4"
+	retry "github.com/avast/retry-go/v5"
 	"k8s.io/klog/v2"
 )
 
@@ -134,7 +134,9 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	var usage admin.Usage
-	err := retry.Do(
+	err := retry.New(
+		retry.LastErrorOnly(true),
+	).Do(
 		func() error {
 			var err error
 			usage, err = collector.rgw.GetUsage(context.Background(), admin.Usage{ShowSummary: new(true), ShowEntries: new(collector.queryEntries), Start: today.String()})
@@ -143,7 +145,6 @@ func (collector *rgwCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			return err
 		},
-		retry.LastErrorOnly(true),
 	)
 
 	if err != nil {
@@ -184,7 +185,9 @@ func (collector *rgwCollector) collectStats() {
 	var sm []prometheus.Metric
 	var users *[]string
 
-	err := retry.Do(
+	err := retry.New(
+		retry.LastErrorOnly(true),
+	).Do(
 		func() error {
 			var err error
 			users, err = collector.rgw.GetUsers(context.Background())
@@ -193,7 +196,6 @@ func (collector *rgwCollector) collectStats() {
 			}
 			return err
 		},
-		retry.LastErrorOnly(true),
 	)
 	if err != nil || users == nil {
 		klog.Errorf("failed to fetch users: %v", err)
@@ -204,7 +206,9 @@ func (collector *rgwCollector) collectStats() {
 		var size, numObjects uint64
 		var stats []admin.Bucket
 
-		err := retry.Do(
+		err := retry.New(
+			retry.LastErrorOnly(true),
+		).Do(
 			func() error {
 				var err error
 				stats, err = collector.rgw.ListUsersBucketsWithStat(context.Background(), user)
@@ -213,7 +217,6 @@ func (collector *rgwCollector) collectStats() {
 				}
 				return err
 			},
-			retry.LastErrorOnly(true),
 		)
 		if err != nil {
 			klog.Errorf("failed to fetch stats: %v", err)
