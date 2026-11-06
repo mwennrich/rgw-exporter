@@ -3,7 +3,7 @@ module github.com/mwennrich/rgw-exporter
 go 1.26.0
 
 require (
-	github.com/avast/retry-go/v5 v5.0.1
+	github.com/avast/retry-go/v5 v5.1.1
 	github.com/ceph/go-ceph v0.42.1
 	github.com/jinzhu/now v1.1.5
 	github.com/prometheus/client_golang v1.25.0
